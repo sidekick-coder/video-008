@@ -1,8 +1,13 @@
 <script setup>
-import { computed } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { useForm } from "../composable/form";
 
 const props = defineProps({
   id: {
+    type: String,
+    default: null,
+  },
+  type: {
     type: String,
     default: null,
   },
@@ -14,6 +19,10 @@ const props = defineProps({
     type: String,
     default: "",
   },
+  rules: {
+    type: Array,
+    default: () => []
+  }
 });
 
 const emit = defineEmits(["update:modelValue"]);
@@ -26,12 +35,68 @@ const model = computed({
     emit("update:modelValue", value);
   },
 });
+
+// Error messages
+
+const error = ref({
+  message: null,
+})
+
+function validate(){
+  const isValid = props.rules
+    .reduce((result, rule) => {
+
+      if (typeof result === 'string') {
+        return result
+      }
+
+      return rule(model.value)
+    }, true)
+
+    if (typeof isValid === 'string') {
+      error.value.message = isValid
+      return false
+    }
+
+    error.value.message = null
+
+    return true
+}
+
+watch(model, validate)
+
+// Form
+
+const form = useForm()
+
+onMounted(() => {
+  if (!form) return
+
+  form.validateFunctions.push(validate)
+})
+
+onUnmounted(() => {
+  form.validateFunctions.filter(fn => fn !== validate)
+})
+
+
 </script>
 <template>
-  <div>
-    <label class="font-bold block mb-2 text-gray-500" :for="id" v-if="label">
+  <div class="flex flex-wrap">
+
+    <label class="w-full font-bold block mb-2 text-gray-500" :for="id" v-if="label">
       {{ label }}
     </label>
-    <input :id="id" v-model="model" class="border p-2 outline-teal-500" />
+
+    <input
+      v-model="model"
+      :type="type"
+      :id="id"
+      class="w-full border p-2 outline-teal-500"
+    />
+
+    <small class="text-red-500 mt-2 font-bold">
+      {{ error.message }}
+    </small>
   </div>
 </template>
